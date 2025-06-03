@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Spiel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Grundlegende Stile für den Körper */
+        body {
+            font-family: 'Inter', sans-serif; /* Verwendung der Inter-Schriftart */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh; /* Mindesthöhe des Viewports */
+            background-color: #f0f2f5; /* Heller Hintergrund */
+            color: #333; /* Dunkler Text */
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* Container für das gesamte Spiel */
+        .game-container {
+            background-color: #ffffff; /* Weißer Hintergrund für den Container */
+            padding: 30px;
+            border-radius: 15px; /* Abgerundete Ecken */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); /* Sanfter Schatten */
+            text-align: center;
+            max-width: 95%; /* Maximale Breite für Responsivität */
+            width: 600px; /* Feste Breite für größere Bildschirme */
+            margin-bottom: 20px;
+        }
+
+        /* Titel des Spiels */
+        h1 {
+            font-size: 2.5rem; /* Große Schriftgröße */
+            color: #4a90e2; /* Blauer Titel */
+            margin-bottom: 25px;
+            font-weight: 700; /* Fette Schrift */
+        }
+
+        /* Score- und Rundenanzeige */
+        .game-info {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin-bottom: 25px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #555;
+            flex-wrap: wrap; /* Umbruch auf kleineren Bildschirmen */
+        }
+
+        .player-score {
+            padding: 10px 15px;
+            border-radius: 8px;
+            background-color: #e0e0e0;
+            margin: 5px;
+            transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        /* Standard aktiver Spieler Hintergrund */
+        .player-score.active {
+            background-color: #a7d9ff; /* Helleres Blau für aktiven Spieler */
+            color: #0056b3;
+            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2);
+        }
+
+        /* Aktiver Spieler 1 (Rot) */
+        .player-score.active.player1-active {
+            background-color: #fca5a5; /* Helleres Rot für aktiven Spieler 1 */
+            color: #dc2626; /* Dunkleres Rot für Text */
+            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2);
+        }
+
+        /* Aktiver Spieler 2 (Blau) */
+        .player-score.active.player2-active {
+            background-color: #bfdbfe; /* Helleres Blau für aktiven Spieler 2 */
+            color: #2563eb; /* Dunkleres Blau für Text */
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2);
+        }
+
+        .turn-indicator {
+            margin: 0 15px;
+            font-size: 1.3rem;
+            color: #4a90e2;
+        }
+
+        /* Spielbrett */
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); /* 4 Spalten */
+            grid-template-rows: repeat(4, 1fr); /* 4 Zeilen */
+            gap: 10px; /* Abstand zwischen den Karten */
+            width: 480px; /* Feste Breite für das Board (4 * 100px + 3 * 10px) */
+            height: 480px; /* Feste Höhe für das Board */
+            margin: 0 auto;
+            perspective: 1000px; /* Für 3D-Flip-Effekt */
+        }
+
+        /* Einzelne Karte */
+        .card {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d; /* Für 3D-Flip-Effekt */
+            transition: transform 0.6s; /* Übergang für den Flip */
+            border-radius: 10px; /* Abgerundete Ecken */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Schatten */
+            cursor: pointer;
+        }
+
+        /* Vorder- und Rückseite der Karte */
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden; /* Versteckt die Rückseite, wenn sie nicht sichtbar ist */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            font-size: 3rem; /* Große Schriftgröße für Emojis */
+            font-weight: bold;
+        }
+
+        .card-back {
+            background-color: #6a93cb; /* Blauer Hintergrund für die Rückseite */
+            color: white;
+            border: 2px solid #4a7bbd;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-front {
+            background-color: #ffffff; /* Weißer Hintergrund für die Vorderseite */
+            color: #333;
+            transform: rotateY(180deg); /* Vorderseite ist standardmäßig um 180 Grad gedreht */
+            border: 2px solid #e0e0e0;
+        }
+
+        /* Karte umdrehen */
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        /* Gefundene Karten */
+        .card.matched {
+            cursor: default;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* Weniger Schatten */
+        }
+
+        /* Styling für die Vorderseite der gefundenen Karten */
+        .card.matched .card-front {
+            opacity: 0.7; /* Leicht transparent, wenn gefunden */
+        }
+
+        /* Gefundene Karten - Spieler 1 (Rot) */
+        .card.matched.player1 .card-front {
+            background-color: #ef4444; /* Rot für Spieler 1 */
+            color: white; /* Textfarbe anpassen */
+        }
+
+        /* Gefundene Karten - Spieler 2 (Blau) */
+        .card.matched.player2 .card-front {
+            background-color: #3b82f6; /* Blau für Spieler 2 */
+            color: white; /* Textfarbe anpassen */
+        }
+
+        /* Button-Stil */
+        .action-button {
+            background-color: #28a745; /* Grüner Button */
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 25px;
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3); /* Schatten für den Button */
+        }
+
+        /* Hover-Effekt für Button */
+        .action-button:hover {
+            background-color: #218838; /* Dunkleres Grün beim Hover */
+            transform: translateY(-2px); /* Leicht nach oben bewegen */
+        }
+
+        /* Aktiver (geklickter) Button-Effekt */
+        .action-button:active {
+            transform: translateY(0); /* Zurück zur ursprünglichen Position */
+            box-shadow: 0 2px 8px rgba(40, 167, 69, 0.4); /* Kleinerer Schatten */
+        }
+
+        /* Meldungsbox für Gewinn/Fehler */
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #4CAF50; /* Grüner Hintergrund für Erfolg */
+            color: white;
+            padding: 25px 40px;
+            border-radius: 10px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            font-size: 1.5rem;
+            font-weight: 700;
+            z-index: 1000;
+            display: none; /* Standardmäßig ausgeblendet */
+            text-align: center;
+            animation: fadeIn 0.3s ease-out; /* Einblenden-Animation */
+        }
+
+        .message-box.error {
+            background-color: #f44336; /* Roter Hintergrund für Fehler */
+        }
+
+        /* Animation für Einblenden */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -60%); }
+            to { opacity: 1; transform: translate(-50%, -50%); }
+        }
+
+        /* Responsives Design für kleinere Bildschirme */
+        @media (max-width: 600px) {
+            .game-container {
+                padding: 20px;
+                width: 100%; /* Volle Breite auf kleinen Bildschirmen */
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .game-board {
+                width: 320px; /* 4 * 70px + 3 * 10px */
+                height: 320px;
+                gap: 8px;
+            }
+
+            .card-face {
+                font-size: 2rem;
+            }
+
+            .game-info {
+                font-size: 1rem;
+            }
+
+            .turn-indicator {
+                font-size: 1.1rem;
+                margin-top: 10px;
+            }
+
+            .action-button {
+                padding: 10px 20px;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Memory Spiel</h1>
+        <div class="game-info">
+            <div id="player1Score" class="player-score active">Spieler 1: 0</div>
+            <div id="turnIndicator" class="turn-indicator">Spieler 1 ist dran</div>
+            <div id="player2Score" class="player-score">Spieler 2: 0</div>
+        </div>
+        <div id="gameBoard" class="game-board">
+            </div>
+        <button id="newGameButton" class="action-button">Neues Spiel</button>
+    </div>
+
+    <div id="messageBox" class="message-box"></div>
+
+    <script type="module">
+        // Firebase-Konfiguration und Initialisierung (Platzhalter, falls Firestore benötigt wird)
+        // const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        // import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        // import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        // import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // let app;
+        // let db;
+        // let auth;
+        // let userId;
+
+        // if (Object.keys(firebaseConfig).length > 0) {
+        //     app = initializeApp(firebaseConfig);
+        //     db = getFirestore(app);
+        //     auth = getAuth(app);
+
+        //     window.onload = async function() {
+        //         try {
+        //             if (typeof __initial_auth_token !== 'undefined') {
+        //                 await signInWithCustomToken(auth, __initial_auth_token);
+        //             } else {
+        //                 await signInAnonymously(auth);
+        //             }
+        //             userId = auth.currentUser?.uid || crypto.randomUUID();
+        //             console.log("Firebase initialized. User ID:", userId);
+        //             initGame(); // Spiel initialisieren, nachdem Firebase bereit ist
+        //         } catch (error) {
+        //             console.error("Fehler bei der Firebase-Initialisierung oder Authentifizierung:", error);
+        //             showMessage("Fehler beim Laden des Spiels. Bitte versuchen Sie es erneut.", true);
+        //         }
+        //     };
+        // } else {
+            // Wenn Firebase nicht konfiguriert ist, Spiel direkt initialisieren
+            window.onload = initGame;
+        // }
+
+        const cardValues = [
+            '🍎', '🍌', '🍇', '🍓', '🍍', '🥝', '🥭', '🍊',
+            '🚗', '🚕', '🚌', '🚓', '🚑', '🚒', '🚚', '🚜',
+            '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼',
+            '⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏉', '🎱'
+        ]; // Eine größere Auswahl an Werten, um mehr Paare zu ermöglichen
+
+        const NUM_PAIRS = 8; // Anzahl der Paare für ein 4x4-Gitter (insgesamt 16 Karten)
+        let gameCards = []; // Die Karten für das aktuelle Spiel
+        let flippedCards = []; // Die aktuell umgedrehten Karten
+        let matchedPairs = 0; // Anzahl der gefundenen Paare
+
+        let playerScores = {
+            player1: 0,
+            player2: 0
+        };
+        let currentPlayer = 1; // Startet mit Spieler 1
+        let lockBoard = false; // Verhindert Klicks, während Karten verglichen werden
+
+        const gameBoard = document.getElementById('gameBoard');
+        const player1ScoreDisplay = document.getElementById('player1Score');
+        const player2ScoreDisplay = document.getElementById('player2Score');
+        const turnIndicator = document.getElementById('turnIndicator');
+        const newGameButton = document.getElementById('newGameButton');
+        const messageBox = document.getElementById('messageBox');
+
+        /**
+         * Zeigt eine temporäre Meldungsbox an.
+         * @param {string} message - Die anzuzeigende Nachricht.
+         * @param {boolean} isError - True, wenn es sich um eine Fehlermeldung handelt.
+         */
+        function showMessage(message, isError = false) {
+            messageBox.textContent = message;
+            messageBox.className = 'message-box'; // Setzt die Klasse zurück
+            if (isError) {
+                messageBox.classList.add('error');
+            }
+            messageBox.style.display = 'block';
+            setTimeout(() => {
+                messageBox.style.display = 'none';
+            }, 3000); // Meldung verschwindet nach 3 Sekunden
+        }
+
+        /**
+         * Initialisiert das Spiel.
+         */
+        function initGame() {
+            resetGame();
+            generateCards();
+            renderBoard();
+            updateScoreDisplay();
+            updateTurnIndicator();
+        }
+
+        /**
+         * Setzt den Spielzustand zurück.
+         */
+        function resetGame() {
+            flippedCards = [];
+            matchedPairs = 0;
+            playerScores.player1 = 0;
+            playerScores.player2 = 0;
+            currentPlayer = 1;
+            lockBoard = false;
+            gameBoard.innerHTML = ''; // Altes Board leeren
+        }
+
+        /**
+         * Generiert die Karten für das Spiel.
+         */
+        function generateCards() {
+            const selectedValues = [];
+            // Wähle zufällig NUM_PAIRS einzigartige Werte
+            while (selectedValues.length < NUM_PAIRS) {
+                const randomIndex = Math.floor(Math.random() * cardValues.length);
+                const value = cardValues[randomIndex];
+                if (!selectedValues.includes(value)) {
+                    selectedValues.push(value);
+                }
+            }
+
+            // Erstelle Paare der ausgewählten Werte
+            gameCards = [...selectedValues, ...selectedValues];
+            shuffleArray(gameCards); // Mische die Karten
+        }
+
+        /**
+         * Mischt ein Array zufällig (Fisher-Yates Shuffle).
+         * @param {Array} array - Das zu mischende Array.
+         */
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        /**
+         * Rendert das Spielbrett.
+         */
+        function renderBoard() {
+            gameCards.forEach((value, index) => {
+                const cardElement = document.createElement('div');
+                cardElement.classList.add('card');
+                cardElement.dataset.value = value;
+                cardElement.dataset.index = index;
+
+                const cardBack = document.createElement('div');
+                cardBack.classList.add('card-face', 'card-back');
+                cardBack.textContent = '?'; // Symbol auf der Rückseite
+
+                const cardFront = document.createElement('div');
+                cardFront.classList.add('card-face', 'card-front');
+                cardFront.textContent = value; // Der Wert der Karte (Emoji)
+
+                cardElement.appendChild(cardBack);
+                cardElement.appendChild(cardFront);
+
+                cardElement.addEventListener('click', handleCardClick);
+                gameBoard.appendChild(cardElement);
+            });
+        }
+
+        /**
+         * Aktualisiert die Anzeige der Punktestände.
+         */
+        function updateScoreDisplay() {
+            player1ScoreDisplay.textContent = `Spieler 1: ${playerScores.player1}`;
+            player2ScoreDisplay.textContent = `Spieler 2: ${playerScores.player2}`;
+
+            // Entferne alle aktiven Spielerklassen zuerst
+            player1ScoreDisplay.classList.remove('active', 'player1-active', 'player2-active');
+            player2ScoreDisplay.classList.remove('active', 'player1-active', 'player2-active');
+
+            if (currentPlayer === 1) {
+                player1ScoreDisplay.classList.add('active', 'player1-active');
+            } else {
+                player2ScoreDisplay.classList.add('active', 'player2-active');
+            }
+        }
+
+        /**
+         * Aktualisiert die Anzeige, welcher Spieler an der Reihe ist.
+         */
+        function updateTurnIndicator() {
+            turnIndicator.textContent = `Spieler ${currentPlayer} ist dran`;
+        }
+
+        /**
+         * Behandelt das Klicken auf eine Karte.
+         * @param {Event} event - Das Klick-Ereignis.
+         */
+        function handleCardClick(event) {
+            const clickedCard = event.currentTarget;
+
+            // Verhindere Klicks, wenn das Board gesperrt ist oder die Karte bereits umgedreht/gematcht ist
+            if (lockBoard || clickedCard.classList.contains('flipped') || clickedCard.classList.contains('matched')) {
+                return;
+            }
+
+            clickedCard.classList.add('flipped');
+            flippedCards.push(clickedCard);
+
+            if (flippedCards.length === 2) {
+                lockBoard = true; // Board sperren
+                checkForMatch();
+            }
+        }
+
+        /**
+         * Überprüft, ob die beiden umgedrehten Karten ein Paar bilden.
+         */
+        function checkForMatch() {
+            const [card1, card2] = flippedCards;
+            const isMatch = card1.dataset.value === card2.dataset.value;
+
+            if (isMatch) {
+                handleMatch(card1, card2);
+            } else {
+                handleNoMatch(card1, card2);
+            }
+        }
+
+        /**
+         * Behandelt einen Treffer (Match).
+         * @param {HTMLElement} card1 - Die erste gematchte Karte.
+         * @param {HTMLElement} card2 - Die zweite gematchte Karte.
+         */
+        function handleMatch(card1, card2) {
+            setTimeout(() => {
+                card1.classList.add('matched', `player${currentPlayer}`); // Füge Spielerklasse hinzu
+                card2.classList.add('matched', `player${currentPlayer}`); // Füge Spielerklasse hinzu
+                matchedPairs++;
+
+                playerScores[`player${currentPlayer}`]++;
+                updateScoreDisplay();
+
+                checkWinCondition();
+                resetFlippedCards();
+            }, 800); // Kurze Verzögerung, damit der Spieler die Karten sehen kann
+        }
+
+        /**
+         * Behandelt keinen Treffer (No Match).
+         * @param {HTMLElement} card1 - Die erste umgedrehte Karte.
+         * @param {HTMLElement} card2 - Die zweite umgedrehte Karte.
+         */
+        function handleNoMatch(card1, card2) {
+            setTimeout(() => {
+                card1.classList.remove('flipped');
+                card2.classList.remove('flipped');
+                switchPlayer();
+                resetFlippedCards();
+            }, 1200); // Längere Verzögerung, damit der Spieler die Karten sehen kann
+        }
+
+        /**
+         * Setzt die umgedrehten Karten zurück und entsperrt das Board.
+         */
+        function resetFlippedCards() {
+            flippedCards = [];
+            lockBoard = false;
+        }
+
+        /**
+         * Wechselt den aktuellen Spieler.
+         */
+        function switchPlayer() {
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            updateTurnIndicator();
+            updateScoreDisplay(); // Aktualisiert die Hervorhebung des Spielers
+        }
+
+        /**
+         * Überprüft, ob das Spiel gewonnen wurde.
+         */
+        function checkWinCondition() {
+            if (matchedPairs === NUM_PAIRS) {
+                setTimeout(() => {
+                    let winnerMessage = '';
+                    if (playerScores.player1 > playerScores.player2) {
+                        winnerMessage = `Spieler 1 gewinnt mit ${playerScores.player1} Paaren!`;
+                    } else if (playerScores.player2 > playerScores.player1) {
+                        winnerMessage = `Spieler 2 gewinnt mit ${playerScores.player2} Paaren!`;
+                    } else {
+                        winnerMessage = `Unentschieden! Beide Spieler haben ${playerScores.player1} Paare.`;
+                    }
+                    showMessage(`Spiel beendet! ${winnerMessage}`);
+                }, 500);
+            }
+        }
+
+        // Event-Listener für den "Neues Spiel"-Button
+        newGameButton.addEventListener('click', initGame);
+
+        // Spiel beim Laden der Seite initialisieren
+        // window.onload wird bereits oben behandelt, falls Firebase nicht verwendet wird.
+    </script>
+</body>
+</html>
